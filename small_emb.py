@@ -4,9 +4,8 @@ Word Embedding Exercise
 
 """
 
-
 import numpy as np
-from tqdm import tqdm, tnrange, tqdm_notebook
+from tqdm import tqdm
 from pandas import read_csv
 from nltk import word_tokenize
 
@@ -16,15 +15,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-whitepapers = read_csv('whitepapers.csv')
-# merge description and document text
-whitepapers['text'] = whitepapers.description + ' ' +\
-                      whitepapers.document_text
-# filter down to relevant entries
-df = whitepapers.drop(columns=['description',
-                               'document_text',
-                               'document_tokens'])
-del whitepapers
 
 # tokenize (aka .split()++, thank you nltk)
 train_txt = ''
@@ -53,7 +43,7 @@ train_data = torch.LongTensor(train_data)
 # record vocab_size
 vocab_size = len(unique_tokens)
 # sanity check
-for [x,y] in train_data[200100:200105]:
+for [x, y] in train_data[200100:200105]:
     print(x2w[int(x)], x2w[int(y)])
 # clean memory
 del indices
@@ -70,7 +60,7 @@ class CBOW(nn.Module):
         self.fc1 = nn.Linear(embedding_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, vocab_size)
         self.out = nn.Softmax(dim=2)
-    
+
     def forward(self, x):
         x = self.embed(x).view(self.batch_size, 1, -1)
         x = F.relu(self.fc1(x))
@@ -81,16 +71,19 @@ class CBOW(nn.Module):
 model = CBOW(vocab_size=vocab_size, embedding_dim=100, hidden_dim=128,
              context_size=2, batch_size=256).cuda()
 
+
 def one_hot(idx_batch):
     one_hot_mat = torch.zeros((len(idx_batch), vocab_size)).float()
     indices = torch.LongTensor(idx_batch).view(-1, 1)
     one_hot_mat.scatter_(1, indices, 1.0)
     return one_hot_mat
 
+
 def mat_loss(pred, gt):
     delta = pred.float() - gt.float()
     norm = torch.norm(delta, p=2, dim=1)
     return (torch.sum(norm) / gt.shape[1])
+
 
 def batchify(data, batch_size, use_cuda=False):
     rm_size = len(data) % batch_size
@@ -102,7 +95,9 @@ def batchify(data, batch_size, use_cuda=False):
     y = y.view(-1, batch_size)
     return x, y
 
+
 x, y = batchify(train_data, batch_size=256, use_cuda=True)
+
 
 def train(x_train, y_train, num_epochs, use_cuda=False):
     loss_fn = mat_loss
@@ -128,5 +123,5 @@ def train(x_train, y_train, num_epochs, use_cuda=False):
         torch.save(model, 'models/model_{}'.format(total_loss))
         print("Successfully Saved model_{}!".format(total_loss))
 
-train(x, y, num_epochs=100, use_cuda=True)
 
+train(x, y, num_epochs=100, use_cuda=True)
